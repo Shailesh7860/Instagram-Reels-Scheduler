@@ -2,14 +2,32 @@ import time
 import os
 from datetime import datetime
 from instagrapi import Client
+import gc
 
 # Instagram Login Credentials
 USERNAME = "<username>"
 PASSWORD = "<password>"
+SETTINGS_PATH = "<dir>/insta_settings.json"
 
 # Initialize Instagrapi Client
 cl = Client()
-cl.login(USERNAME, PASSWORD)
+
+# Load existing session if available
+if os.path.exists(SETTINGS_PATH):
+    cl.load_settings(SETTINGS_PATH)
+
+try:
+    cl.login(USERNAME, PASSWORD)
+except Exception as e:
+    print(f"🔐 Login failed, trying OTP flow: {e}")
+    try:
+        code = input("Enter the Instagram 2FA code: ")
+        cl.login(USERNAME, PASSWORD, verification_code=code)
+        cl.dump_settings(SETTINGS_PATH)
+        print("✅ Login with 2FA successful!")
+    except Exception as e2:
+        print(f"❌ OTP login failed: {e2}")
+        exit(1)
 
 # Directory containing reels
 REELS_DIR = "/videos"
@@ -57,6 +75,9 @@ while True:
         time.sleep(60)
     except Exception as e:
         print(f"❌ Failed to upload {video_file}: {e}")
+
+    # Trigger garbage collection to free up memory
+    gc.collect()
 
     # Move to the next part
     part_number += 1
